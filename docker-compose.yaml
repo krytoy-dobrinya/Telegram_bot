@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN} 
+    volumes:
+      - ./app:/app
+      - ./.env:/app/.env
+
+    restart: unless-stopped
