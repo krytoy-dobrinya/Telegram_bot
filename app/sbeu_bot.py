@@ -6,6 +6,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 
 
 
@@ -16,6 +18,43 @@ load_dotenv()
 API_TOKEN = os.getenv('BOT_TOKEN')
 if not API_TOKEN:
     raise ValueError("Токен бота не найден в .env файле!")
+
+# Данные для PostgreSQL
+def get_database_engine():
+    try:
+        # Получаем переменные окружения с проверкой
+        POSTGRES_USER = os.getenv('POSTGRES_USER')
+        POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+        POSTGRES_DB = os.getenv('POSTGRES_DB')
+        POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'postgres')
+        POSTGRES_PORT = os.getenv('POSTGRES_PORT', '5432')
+
+        if not all([POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB]):
+            raise ValueError("Не все обязательные переменные окружения для PostgreSQL заданы!")
+
+        # Формируем строку подключения
+        DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+        
+        # Создаём движок с настройками
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,
+            echo=True 
+        )
+        
+        # Проверяем подключение (используем text() для SQL-запросов)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            print("Успешное подключение к PostgreSQL")
+            
+        return engine
+        
+    except SQLAlchemyError as e:
+        print(f"Ошибка подключения к PostgreSQL: {e}")
+        raise
+
+# Инициализация подключения
+engine = get_database_engine()
 
 # Инициализация бота
 bot = Bot(token=API_TOKEN) 
@@ -74,6 +113,7 @@ async def send_welcome(message: types.Message):
 /помоги - А вот так тут говорят
 /смешнява - Ну смешняву вкину
 /лут - Покажу что вынес из рейда
+/база - Проверить есть ли база
     """
     await message.answer(help_text)
 
@@ -132,17 +172,33 @@ async def send_loot(message: types.Message):
             
     except Exception as e:
         await message.answer(f"Ошибка: {str(e)}")
+        
+# /база
+@dp.message(Command("база"))
+async def check_db(message: types.Message):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            await message.answer("База есть.")
+    except SQLAlchemyError as e:
+        await message.answer(f"Сегодня без базы: {e}")
 
 
 # --------------------------------------------------------------------------------------------------------------------------------
 # Запуск бота
 async def main():
-    await dp.start_polling(bot)
+    # Инициализация подключения к БД
+    try:
+        engine = get_database_engine()
+        
+        # Ваш код запуска бота
+        await dp.start_polling(bot)
+        
+    except Exception as e:
+        print(f"Ошибка при запуске: {e}")
+    finally:
+        if 'engine' in locals():
+            engine.dispose()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Бот остановлен")
-    except Exception as e:
-        print(f"Критическая ошибка: {e}")
+    asyncio.run(main())
