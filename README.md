@@ -13,7 +13,7 @@
 
 <pre>
 .  
-├── image               # Папка с мемами  
+├── images              # Папка с мемами  
 ├── main.py             # Основной скрипт бота  
 ├── commands.py         # Обработчики команд  
 ├── database.py         # Работа с PostgreSQL  
