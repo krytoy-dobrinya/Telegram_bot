@@ -24,7 +24,7 @@ async def open_image(image_path, message, phrase):
 
 # /start      
 async def cmd_start(message: types.Message):
-    await message.answer("УЭЭЭЭ я СБЭУ бот!!!")
+    await message.answer("УЭЭЭЭ я СБЭУ бот!!! Как попросить помощи с командами сам догадаешься.")
 
 
 # /help
