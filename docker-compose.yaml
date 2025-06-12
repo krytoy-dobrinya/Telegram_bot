@@ -30,6 +30,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+
+  alembic:
+    build: .
+    volumes:
+      - ./app/alembic:/app/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+    working_dir: /app 
+    env_file: .env
+    command: sh -c "alembic revision --autogenerate && alembic upgrade head"
+    environment:
+      - DEBUG=true
+      - PYTHONPATH=/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
 

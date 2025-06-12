@@ -1,0 +1,13 @@
+FROM python
+WORKDIR /tgbot
+
+ENV PYTHONPATH=/tg_bot
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt alembic asyncpg
+
+# Копируем необходимые файлы
+COPY alembic.ini .
+COPY app/db.py ./app/
+COPY app/models.py ./app/
+COPY app/alembic ./app/alembic
