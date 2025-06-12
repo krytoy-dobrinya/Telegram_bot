@@ -1,30 +1,53 @@
-import asyncio
-from aiogram import Bot, Dispatcher, Router
-from config import API_TOKEN
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.types import Message
 from database import Database
-from commands import setup_commands_router
+from middlewares import DbSessionMiddleware, SaveMessageMiddleware
+from commands import cmd_start
+import asyncio
+import logging
+from config import API_TOKEN
+from commands import *
 
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+async def on_startup(dispatcher: Dispatcher, bot: Bot):
+    db = Database()
+    await db.connect()
+    
+    # Создать сессию
+    dispatcher.update.middleware(DbSessionMiddleware(db))
+    
+    # Использовать сессию
+    dispatcher.update.middleware(SaveMessageMiddleware())
+    
+    # Подключение роутера
+    router = Router()
+    setup_commands_router(router, db)
+    
+    dispatcher.include_router(router)
+    
+    logger.info("Бот успешно запущен")
+
+async def on_shutdown(dispatcher: Dispatcher, bot: Bot):
+    logger.info("Остановка бота...")
+    await dispatcher.storage.close()
+    await bot.session.close()
+
+# Подключение бота
 async def main():
     bot = Bot(token=API_TOKEN)
     dp = Dispatcher()
     
-    # Инициализация БД
-    db = Database()
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+    
     try:
-        # Явная инициализация соединения
-        await db.get_engine()  
-        
-        # Настройка роутеров
-        commands_router = Router()
-        
-        # Регистрация команд с передачей db
-        setup_commands_router(commands_router, db)
-        dp.include_router(commands_router)
-        
         await dp.start_polling(bot)
     finally:
-        await db.close()
+        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

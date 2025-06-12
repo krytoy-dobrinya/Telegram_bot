@@ -3,9 +3,12 @@ from aiogram import types, Router
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile
 from config import *
-from sqlalchemy import text
+from sqlalchemy import text, select
 from database import Database
-
+from sqlalchemy.ext.asyncio import AsyncSession
+from models import Message, User
+from sqlalchemy import desc
+from functools import partial
 
 # Открыть картинку
 async def open_image(image_path, message, phrase):
@@ -23,8 +26,20 @@ async def open_image(image_path, message, phrase):
 
 
 # /start      
-async def cmd_start(message: types.Message):
-    await message.answer("УЭЭЭЭ я СБЭУ бот!!! Как попросить помощи с командами сам догадаешься.")
+async def cmd_start(message: Message, session: AsyncSession):
+    try:
+        user = await session.get(User, message.from_user.id)
+        if not user:
+            user = User(id=message.from_user.id)
+            session.add(user)
+            await session.commit()
+            await message.answer("Добро пожаловать!")
+        else:
+            await message.answer("С возвращением!")
+    except Exception as e:
+        await session.rollback()
+        await message.answer("Произошла ошибка")
+        raise e
 
 
 # /help
@@ -41,6 +56,7 @@ async def cmd_pomogi(message: types.Message):
 /смешнява - Ну смешняву вкину
 /лут - Покажу что вынес из рейда
 /база - Проверить есть ли база
+/re_chat - Кто знает что это такое...
     """
     await message.answer(help_text)
 
@@ -81,17 +97,68 @@ async def cmd_db_check(message: types.Message, db):
         await message.answer(f"Сегодня без базы... : {str(e)}")
 
 
+# /re_chat
+async def cmd_re_chat(message: types.Message, session: AsyncSession):
+    user_id = message.from_user.id
+    username = message.from_user.username
+    
+    # Получаем последние 10 сообщений пользователя из чата с ботом
+    try:
+        # Получаем или создаем пользователя в БД
+        user = await session.get(User, user_id)
+        if not user:
+            user = User(id=user_id, username=username)
+            session.add(user)
+            await session.commit()
+        
+        # Получаем историю сообщений (последние 10)
+        messages = await session.execute(
+            select(Message)
+            .where(Message.user_id == user_id)
+            .order_by(desc(Message.id))
+            .limit(10)
+        )
+        messages = messages.scalars().all()
+        
+        if not messages:
+            await message.answer("У вас нет сообщений в базе!")
+            return
+        
+        
+        # Формируем список сообщений в прямом порядке (от старых к новым)
+        message_history = [msg.text for msg in messages]
+        
+        # Отправляем пользователю
+        response = "Последние 10 сообщений:\n\n"
+        response += "\n\n".join(f"➡ {text}" for text in message_history)
+        
+        await message.answer(response)
+        
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+        await session.rollback()
+
 # Объявление команд
-def setup_commands_router(router: Router, db: Database) -> None:
-    router.message.register(cmd_start, Command("start"))
+def setup_commands_router(router: Router, db_pool) -> None:
+    router.message.register(
+        partial(cmd_start, session=db_pool),
+        Command("start")
+    )
+    
     router.message.register(cmd_help, Command("help"))
     router.message.register(cmd_pomogi, Command("помоги"))
     router.message.register(cmd_smeshnyava, Command("смешнява"))
     router.message.register(cmd_loot, Command("лут"))
     
-    # Требуется дополнительный аргумент db, поэтому используем partial
-    from functools import partial
     router.message.register(
-        partial(cmd_db_check, db=db),
+        partial(cmd_re_chat, session=db_pool),  # Теперь передаём session
+        Command("re_chat")
+    )
+    
+    # Требуется дополнительный аргумент db_pool, поэтому используем partial
+    router.message.register(
+        partial(cmd_db_check, db=db_pool),
         Command("база")
     )
+
+
