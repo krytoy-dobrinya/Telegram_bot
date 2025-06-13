@@ -9,8 +9,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import Message, User
 from sqlalchemy import desc
 from functools import partial
+import logging
+import asyncio
+from openai import AsyncOpenAI
 
-# Открыть картинку
+
+
+logger = logging.getLogger(__name__)
+
+# Инициализация клиента
+client = AsyncOpenAI(api_key=GPT_TOKEN)
+
+# Функция отправки картинки
 async def open_image(image_path, message, phrase):
     try:
         with open(image_path, "rb") as photo_file:
@@ -25,8 +35,8 @@ async def open_image(image_path, message, phrase):
         await message.answer(f"Ошибка: {str(e)}")
 
 
-# /start      
-async def cmd_start(message: Message, session: AsyncSession):
+# /start
+async def cmd_start(message: types.Message, session: AsyncSession):
     try:
         user = await session.get(User, message.from_user.id)
         if not user:
@@ -102,16 +112,13 @@ async def cmd_re_chat(message: types.Message, session: AsyncSession):
     user_id = message.from_user.id
     username = message.from_user.username
     
-    # Получаем последние 10 сообщений пользователя из чата с ботом
     try:
-        # Получаем или создаем пользователя в БД
         user = await session.get(User, user_id)
         if not user:
             user = User(id=user_id, username=username)
             session.add(user)
             await session.commit()
         
-        # Получаем историю сообщений (последние 10)
         messages = await session.execute(
             select(Message)
             .where(Message.user_id == user_id)
@@ -124,11 +131,7 @@ async def cmd_re_chat(message: types.Message, session: AsyncSession):
             await message.answer("У вас нет сообщений в базе!")
             return
         
-        
-        # Формируем список сообщений в прямом порядке (от старых к новым)
         message_history = [msg.text for msg in messages]
-        
-        # Отправляем пользователю
         response = "Последние 10 сообщений:\n\n"
         response += "\n\n".join(f"➡ {text}" for text in message_history)
         
@@ -138,27 +141,81 @@ async def cmd_re_chat(message: types.Message, session: AsyncSession):
         await message.answer(f"Ошибка: {str(e)}")
         await session.rollback()
 
-# Объявление команд
+
+# /Взаимодействие с ChatGPT
+async def get_chatgpt_response(text: str, user_id: int, session: AsyncSession) -> str:
+    try:
+        # Получаем историю сообщений
+        messages = await session.execute(
+            select(Message)
+            .where(Message.user_id == user_id)
+            .order_by(desc(Message.id))
+            .limit(5)
+        )
+        
+        # Формируем chat_history
+        chat_history = [
+            {"role": "system", "content": GPT_LORE}
+        ] + [
+            {"role": "user", "content": msg.text.strip()}
+            for msg in messages.scalars().all()
+            if msg.text and msg.text.strip()
+        ]
+        
+        # Добавляем текущее сообщение
+        chat_history.append({"role": "user", "content": text.strip()})
+        
+        # Отправка запроса (с await!)
+        response = await client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=chat_history,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        logger.error(f"Ошибка ChatGPT: {e}")
+        return "Извините, не могу ответить сейчас."
+
+
+# /Обычное сообщение без команды
+async def handle_regular_message(message: types.Message, session: AsyncSession):
+    if message.text.startswith('/'):
+        return  # Игнорируем команды
+    
+    try:
+        response = await get_chatgpt_response(
+            message.text, 
+            message.from_user.id, 
+            session
+        )
+        await message.answer(response)
+    except Exception as e:
+        logger.error(f"Ошибка обработки сообщения: {e}")
+        await message.answer("Произошла ошибка при обработке сообщения")
+
+
+# Настройка роутера команд
 def setup_commands_router(router: Router, db_pool) -> None:
     router.message.register(
         partial(cmd_start, session=db_pool),
         Command("start")
     )
-    
     router.message.register(cmd_help, Command("help"))
     router.message.register(cmd_pomogi, Command("помоги"))
     router.message.register(cmd_smeshnyava, Command("смешнява"))
     router.message.register(cmd_loot, Command("лут"))
-    
     router.message.register(
-        partial(cmd_re_chat, session=db_pool),  # Теперь передаём session
+        partial(cmd_re_chat, session=db_pool),
         Command("re_chat")
     )
-    
-    # Требуется дополнительный аргумент db_pool, поэтому используем partial
     router.message.register(
         partial(cmd_db_check, db=db_pool),
         Command("база")
     )
-
-
+    
+    # Регистрируем обработчик обычных сообщений
+    router.message.register(
+        partial(handle_regular_message, session=db_pool)
+    )

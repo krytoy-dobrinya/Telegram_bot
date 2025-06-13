@@ -22,7 +22,7 @@ class DbSessionMiddleware(BaseMiddleware):
             data["session"] = session
             return await handler(event, data)
 
-# Класс подключения мидлвейра
+# Класс класс сохраняющий сообщения
 class SaveMessageMiddleware(BaseMiddleware):
     async def __call__(
         self,

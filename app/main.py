@@ -6,13 +6,16 @@ from middlewares import DbSessionMiddleware, SaveMessageMiddleware
 from commands import cmd_start
 import asyncio
 import logging
-from config import API_TOKEN
+from config import API_TOKEN, GPT_TOKEN
 from commands import *
+import openai
+
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Выполняется при запуске бота
 async def on_startup(dispatcher: Dispatcher, bot: Bot):
     db = Database()
     await db.connect()
@@ -35,6 +38,7 @@ async def on_shutdown(dispatcher: Dispatcher, bot: Bot):
     logger.info("Остановка бота...")
     await dispatcher.storage.close()
     await bot.session.close()
+
 
 # Подключение бота
 async def main():

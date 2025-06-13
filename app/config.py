@@ -7,10 +7,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Проверка токена
+# Проверка токена бота
 API_TOKEN = os.getenv('BOT_TOKEN')
 if not API_TOKEN:
     raise ValueError("Токен бота не найден в .env файле!")
+
+# Проверка токена ChatGPT
+GPT_TOKEN = os.getenv('GPT_TOKEN')
+if not GPT_TOKEN:
+    raise ValueError("Токен GPT не найден в .env файле!")
 
 
 # Проверка данных из бд
@@ -27,6 +32,12 @@ if not all([POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB]):
 # Пути
 IMAGES_DIR = Path("images")
 LOOT_IMAGE = IMAGES_DIR / "loot.jpg"
+
+
+# Подключение прокси
+PROXY_URL = os.getenv("PROXY_URL")
+os.environ["http_proxy"] = PROXY_URL
+os.environ["https_proxy"] = PROXY_URL
 
 
 # Рандомные фразы
@@ -52,3 +63,11 @@ RANDOM_LOOT_PHRASES = [
     "Смотрите что с эпицентра вынес",
     "Смотрите что с маяка вынес"
 ]
+
+# Предустановка ChatGPT
+GPT_LORE = """
+Ты СБЭУ(Симуляция Боя в Экстремальных Условиях) Помощник.
+Ты должен отвечать в соответствии с лором Escape from Tarkov.
+Пиши небольшие ответы (не больше 3-4 предложений). 
+Используй фразы, который используют Дикие, ЧВК BEAR и боссы игры.
+"""
