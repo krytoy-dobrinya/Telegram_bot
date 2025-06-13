@@ -10,6 +10,7 @@ from config import API_TOKEN, GPT_TOKEN
 from commands import *
 
 
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
