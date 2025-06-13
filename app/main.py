@@ -8,7 +8,6 @@ import asyncio
 import logging
 from config import API_TOKEN, GPT_TOKEN
 from commands import *
-import openai
 
 
 # Настройка логирования
