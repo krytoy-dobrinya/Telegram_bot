@@ -11,13 +11,9 @@ from models import Message, User
 from sqlalchemy import desc
 from functools import partial
 import logging
-import asyncio
 from openai import AsyncOpenAI
 from config import VK_CLIENT_ID, VK_REDIRECT_URI
-import secrets
-import base64
-import hashlib
-import httpx
+
 
 
 logger = logging.getLogger(__name__)
