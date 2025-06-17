@@ -18,8 +18,14 @@ class User(Base):
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
-    username = Column(String, nullable=True, comment="Username в Telegram")
+    username = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    
+    # Добавляем новые поля для VK OAuth
+    vk_code_verifier = Column(String, nullable=True)
+    vk_access_token = Column(String, nullable=True)
+    vk_refresh_token = Column(String, nullable=True)
+    vk_user_id = Column(Integer, nullable=True)
     
     messages = relationship("Message", back_populates="user", cascade="all, delete-orphan")
 

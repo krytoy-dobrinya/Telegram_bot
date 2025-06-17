@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 load_dotenv()
 
 # Импортируем метаданные ваших моделей
-from app.models import *
+from models import *
 
 # Конфигурация Alembic
 config = context.config

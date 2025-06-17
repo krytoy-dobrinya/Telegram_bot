@@ -2,13 +2,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message
 from database import Database
-from middlewares import DbSessionMiddleware, SaveMessageMiddleware
+from middlewares import DbSessionMiddleware, SaveMessageMiddleware, RateLimitMiddleware
 from commands import cmd_start
 import asyncio
 import logging
 from config import API_TOKEN, GPT_TOKEN
 from commands import *
-import openai
+
 
 
 # Настройка логирования
@@ -20,11 +20,11 @@ async def on_startup(dispatcher: Dispatcher, bot: Bot):
     db = Database()
     await db.connect()
     
-    # Создать сессию
-    dispatcher.update.middleware(DbSessionMiddleware(db))
-    
-    # Использовать сессию
-    dispatcher.update.middleware(SaveMessageMiddleware())
+    # Регистрируем middleware
+    dispatcher.update.outer_middleware(RateLimitMiddleware())  # Rate limit
+    dispatcher.update.middleware(DbSessionMiddleware(db))      # Сессии
+    dispatcher.update.middleware(SaveMessageMiddleware())      # Сохранение сообщений
+
     
     # Подключение роутера
     router = Router()
