@@ -20,6 +20,7 @@
 ├── docker-compose.yaml      # Оркестрация сервисов (PostgreSQL + бот + Alembic)
 ├── Dockerfile               # Сборка основного образа бота
 ├── Dockerfile.alembic       # Сборка образа для выполнения миграций
+├── Dockerfile.server        # Сборка образа для работы сервера
 ├── requirements.txt         # Зависимости Python (aiogram, SQLAlchemy и др.)
 └── app/
     ├── alembic/             # Папка миграций Alembic
@@ -32,6 +33,8 @@
     ├── main.py              # Точка входа (запуск бота, настройка middleware)
     ├── middlewares.py       # Промежуточное ПО (сохранение сообщений, инжект сессий БД)
     ├── models.py            # SQLAlchemy-модели (User, Message)
+    ├── server.py            # Сервер для работы авторизации в ВК
+    ├── auth.html            # Окно появляющееся после успешной авторизации в ВК
     └── images/              # Локальное хранилище медиафайлов (мемы, loot-изображения)
 </pre>
 
