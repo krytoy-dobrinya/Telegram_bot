@@ -8,6 +8,7 @@
 - Демонстрация "лута" из игры по команде `/лут`
 - Проверка подключения к базе данных PostgreSQL по команде `/база`
 - Вывод последних 10 сообщений в обратном порядке по команде `/re_chat`
+- Генерирует и дает кнопку для авторизации в ВК `/auth`
 - Поддержка русского языка интерфейса
 
 ## Файловая система
@@ -52,12 +53,17 @@
 
 Пример заполнения .env файла
 ```
-BOT_TOKEN=ваш_токен_бота
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=пароль
-POSTGRES_DB=имя_базы
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
+BOT_TOKEN = Токен ТГ-бота
+GPT_TOKEN = Токен ChatGPT
+POSTGRES_USER = Имя пользователя в БД
+POSTGRES_PASSWORD = Пароль в БД
+POSTGRES_HOST = Хост в БД
+POSTGRES_PORT = Порт в БД
+POSTGRES_DB = Имя БД
+PROXY_URL = Прокси (если требуется)
+VK_CLIENT_ID = ID приложения в ВК
+VK_CLIENT_SECRET = Секретный ключ от приложения ВК
+VK_REDIRECT_URI = Доверенный URI от приложения ВК
 ```
 
 ## Запуск
