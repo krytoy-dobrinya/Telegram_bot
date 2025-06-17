@@ -71,3 +71,12 @@ GPT_LORE = """
 Пиши небольшие ответы (не больше 3-4 предложений). 
 Используй фразы, который используют Дикие, ЧВК BEAR и боссы игры.
 """
+
+
+# Добавляем в конец файла:
+VK_CLIENT_ID = os.getenv('VK_CLIENT_ID')
+VK_REDIRECT_URI = os.getenv('VK_REDIRECT_URI')
+VK_CLIENT_SECRET = os.getenv('VK_CLIENT_SECRET')
+
+if not VK_CLIENT_ID or not VK_REDIRECT_URI:
+    raise ValueError("Не заданы VK_CLIENT_ID или VK_REDIRECT_URI в .env файле!")

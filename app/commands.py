@@ -1,6 +1,7 @@
 import random
 from aiogram import types, Router
 from aiogram.filters import Command
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import BufferedInputFile
 from config import *
 from sqlalchemy import text, select
@@ -12,7 +13,11 @@ from functools import partial
 import logging
 import asyncio
 from openai import AsyncOpenAI
-
+from config import VK_CLIENT_ID, VK_REDIRECT_URI
+import secrets
+import base64
+import hashlib
+import httpx
 
 
 logger = logging.getLogger(__name__)
@@ -40,16 +45,16 @@ async def cmd_start(message: types.Message, session: AsyncSession):
     try:
         user = await session.get(User, message.from_user.id)
         if not user:
-            user = User(id=message.from_user.id)
+            user = User(id=message.from_user.id, username=message.from_user.username)
             session.add(user)
-            await session.commit()
+            await session.commit()  # Явный commit для гарантии
             await message.answer("Добро пожаловать!")
         else:
             await message.answer("С возвращением!")
     except Exception as e:
         await session.rollback()
-        await message.answer("Произошла ошибка")
-        raise e
+        logger.error(f"Ошибка в /start: {e}")
+        await message.answer("Произошла ошибка при регистрации")
 
 
 # /help
@@ -67,6 +72,7 @@ async def cmd_pomogi(message: types.Message):
 /лут - Покажу что вынес из рейда
 /база - Проверить есть ли база
 /re_chat - Кто знает что это такое...
+/auth - авторизация в ВК
     """
     await message.answer(help_text)
 
@@ -179,6 +185,34 @@ async def get_chatgpt_response(text: str, user_id: int, session: AsyncSession) -
         return "Извините, не могу ответить сейчас."
 
 
+# /auth - отправляет ссылку для авторизации через VK
+async def cmd_auth(message: types.Message):
+    try:
+        client_id = VK_CLIENT_ID
+        redirect_uri = VK_REDIRECT_URI
+        scope = "offline"  # offline для получения refresh_token
+        
+        # Формируем URL для авторизации в точном требуемом формате
+        auth_url = f'https://oauth.vk.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code&state={message.from_user.id}'
+        
+        # Создаем кнопку для авторизации
+        builder = InlineKeyboardBuilder()
+        builder.add(types.InlineKeyboardButton(
+            text="🔑 Авторизоваться через VK",
+            url=auth_url
+        ))
+        
+        await message.answer(
+            "Для авторизации через VK нажмите кнопку ниже:",
+            reply_markup=builder.as_markup()
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в /auth: {e}")
+        await message.answer("Произошла ошибка при создании ссылки авторизации")
+    
+
+
 # /Обычное сообщение без команды
 async def handle_regular_message(message: types.Message, session: AsyncSession):
     if message.text.startswith('/'):
@@ -194,6 +228,9 @@ async def handle_regular_message(message: types.Message, session: AsyncSession):
     except Exception as e:
         logger.error(f"Ошибка обработки сообщения: {e}")
         await message.answer("Произошла ошибка при обработке сообщения")
+
+
+
 
 
 # Настройка роутера команд
@@ -215,7 +252,10 @@ def setup_commands_router(router: Router, db_pool) -> None:
         Command("база")
     )
     
+    router.message.register(cmd_auth, Command("auth"))
+    
     # Регистрируем обработчик обычных сообщений
     router.message.register(
         partial(handle_regular_message, session=db_pool)
     )
+    
